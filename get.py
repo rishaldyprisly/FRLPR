@@ -1,45 +1,37 @@
 import glob
 import os
 import pymysql.cursors
+import time
 
 
-def files():
-     os.listdir('D:\camp\htdocs\LPR')
-     list_of_files = glob.glob('D:\camp\htdocs\LPR\*.lpr')
-     latest_file = max(list_of_files, key=os.path.getctime)
+#while total > 1: 
+files = os.listdir('D:\camp\htdocs\LPR')
+list_of_files = glob.glob('D:\camp\htdocs\LPR\*.lpr') # * means all if need specific format then *.csv
+latest_file = max(list_of_files, key=os.path.getctime)
+connection = pymysql.connect(host='localhost',
+                                 port=3306,
+                                 user='root',
+                                 password='',
+                                 db='lpr',
+                                 charset='utf8mb4',
+                                 cursorclass=pymysql.cursors.DictCursor)
 
+while True:
+    
      with open(latest_file,'rb') as f:
          f = f.readlines()
          print ('')
          print('PLATE NUMBER = ',(f[5]))
          print ('LOCATION = ', (f[10]))
          print ('LOCAL TIME = ',(f[15]))
-
-def send():
-	files()
-     connection = pymysql.connect(host='localhost',
-                             port=3306,
-                             user='root',
-                             password='',
-                             db='lpr',
-                             charset='utf8mb4',
-                             cursorclass=pymysql.cursors.DictCursor)
-
-     try:
-         with connection.cursor() as cursor:
+     with connection.cursor() as cursor:
         # Create a new record
-             sql = 'INSERT INTO viseclpr (plate, lane, time) VALUES (%s, %s, %s)'
-             cursor.execute(sql, (f[5], f[10], f[15]))
-
+         sql = 'INSERT INTO viseclpr (plate, lane, time) VALUES (%s, %s, %s)'
+         cursor.execute(sql, (f[5], f[10], f[15]))
          connection.commit()
-         os.remove(latest_file)
-
-     finally:
-	     #os.remove(latest_file)
-	     connection.close()
-    #os.close(latest_file)
-
-   
-while True:
-	files()
-	send()
+         connection.close()
+         for latest_file in list_of_files:
+             os.unlink(latest_file)
+             time.sleep(0.5)
+             
+         
