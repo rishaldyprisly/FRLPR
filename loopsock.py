@@ -8,9 +8,6 @@ import Queue
 to_network = Queue.Queue()
 LogEvent, EVT_LOG_EVENT = wx.lib.newevent.NewEvent()
 
-#for high bandwidth applications, you are going to want to handle the
-#out_buffer via a different mechanism, perhaps similar to asynchat or
-#otherwise
 class DispatcherConnection(asyncore.dispatcher_with_send):
     def __init__(self, connection, mainwindow):
         self.mainwindow = mainwindow
@@ -25,19 +22,23 @@ class DispatcherConnection(asyncore.dispatcher_with_send):
         if type != 'info':
             self.log(message)
     def handle_close(self):
-        self.log("Connection dropped: %s"%(self.addr,))
+        #self.log(" %s"%(self.addr,))
         self.close()
-    
-    #implement your client logic as a subclass
+
 
 class LineEchoConnection(DispatcherConnection):
     inc_buffer = ''
     def handle_read(self):
         self.inc_buffer += self.recv(512)
+        a = (self.inc_buffer.decode("utf-8"))
+
+        print('PLATE NUMBER = ',(a[327:336]))
+        print('LANE = ', (a[467:478]))
+        print('LOCAL TIME = ',(a[589:615]))
         while '\n' in self.inc_buffer:
             snd, self.inc_buffer = self.inc_buffer.split('\n', 1)
             snd += '\n'
-            self.log("Line from %s: %r"%(self.addr, snd))
+            self.log(" %s: %r"%(self.addr, snd))
             self.send(snd)
 
 class DispatcherServer(asyncore.dispatcher):
@@ -50,8 +51,11 @@ class DispatcherServer(asyncore.dispatcher):
         self.listen(5)
     def handle_accept(self):
         connection, info = self.accept()
-        self.mainwindow.LogString("Got connection: %s"%(info,), sock=self)
+        self.mainwindow.LogString(" %r"%(info,), sock=self)
         self.factory(connection, self.mainwindow)
+
+        #content = connection.recv(2048)
+        
 
 def loop():
     while 1:
@@ -66,7 +70,7 @@ def loop():
 
 class MainWindow(wx.Frame):
     def __init__(self, host, port, threaded=0):
-        wx.Frame.__init__(self, None, title="Sample echo server")
+        wx.Frame.__init__(self, None, title="Visec TCP Listener")
         
         #add any other GUI objects here
         
@@ -79,7 +83,6 @@ class MainWindow(wx.Frame):
         if not threaded:
             self.poller = wx.Timer(self, wx.NewId())
             self.Bind(wx.EVT_TIMER, self.OnPoll)
-            #poll 50 times/second, should be enough for low-bandwidth apps
             self.poller.Start(20, wx.TIMER_CONTINUOUS)
         else:
             t = threading.Thread(target=loop)
@@ -100,10 +103,9 @@ class MainWindow(wx.Frame):
 
     def OnPoll(self, evt):
         asyncore.poll(timeout=0)
-    #add other methods as necessary
 
 if __name__ == '__main__':
     a = wx.App(0)
-    b = MainWindow('localhost', 1199, 0)
+    b = MainWindow('192.168.1.213', 5000, 0)
     b.Show(1)
     a.MainLoop()
